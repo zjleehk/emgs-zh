@@ -1,0 +1,14 @@
+# 本地
+node_modules/
+dist/
+*.local
+.DS_Store
+
+# 环境与密钥（绝不提交）
+.env
+.env.*
+*.pem
+*.key
+telegram.env
+**/telegram.env
+bot.mjs

@@ -1,0 +1,234 @@
+<script setup>
+// App.vue：i18n 全局 + 双 shell + 语言淡入过渡 + 侧栏头像（真实用户）
+import { ref, computed, provide, watch } from 'vue'
+import { useRouter, useRoute } from 'vue-router'
+import { LANGS, TRAD_FLAGS, dictionaries } from './i18n/index.js'
+
+function initialLang() {
+  const saved = localStorage.getItem('emgs_lang') || 'zh-CN'
+  const code = saved === 'zh-CN' ? 'zh-CN' : 'zh-TW'
+  localStorage.setItem('emgs_lang', code)
+  return code
+}
+import { authService } from './services/auth.js'
+import UserAvatar from './components/UserAvatar.vue'
+import logoUrl from './assets/emgs-logo-official.png'
+
+const lang = ref(initialLang())
+const cnLang = LANGS.find(l => l.code === 'zh-CN')
+const showLang = ref(false)
+const langHidden = ref(false)
+let langTimer = 0
+const langTransitioning = ref(false)
+const t = (k) => dictionaries[lang.value][k] ?? k
+provide('t', t)
+provide('lang', lang)
+provide('setLang', setLang)
+
+function setLang(code) {
+  if (code === lang.value) { showLang.value = false; return }
+  // 淡出→切换→淡入，避免生硬跳变
+  langTransitioning.value = true
+  setTimeout(() => {
+    lang.value = code
+    localStorage.setItem('emgs_lang', code)
+    document.documentElement.lang = code
+    langTransitioning.value = false
+  }, 160)
+  showLang.value = false
+}
+watch(() => lang.value, v => { document.documentElement.lang = v }, { immediate: true })
+
+const router = useRouter()
+const route = useRoute()
+watch(() => route.path, () => {
+  showLang.value = false
+  langHidden.value = true
+  clearTimeout(langTimer)
+  langTimer = setTimeout(() => { langHidden.value = false }, 320)
+})
+const isLogin = computed(() => route.path === '/login')
+const isDesktop = ref(window.innerWidth >= 900)
+window.addEventListener('resize', () => { isDesktop.value = window.innerWidth >= 900 })
+const loggedIn = computed(() => authService.loggedIn)
+
+const tabs = computed(() => [
+  { path: '/home', icon: '🏠', label: t('navHome') },
+  { path: '/digital-id', icon: '🪪', label: t('navWallet') },
+  { path: '/ikad-qr', icon: '📷', label: t('navScan') },
+  { path: '/application-history', icon: '📈', label: t('navHistory') },
+  { path: '/profile', icon: '👤', label: t('navProfile') },
+])
+const sideGroups = computed(() => [
+  { title: t('sideOverview'), items: [
+    { path: '/home', icon: '🏠', label: t('sideHome') },
+    { path: '/application-history', icon: '📈', label: t('sideAppHistory') },
+  ]},
+  { title: t('sideDocs'), items: [
+    { path: '/digital-id', icon: '🪪', label: t('sideDocs') },
+    { path: '/ikad-qr', icon: '📷', label: t('pageScan') },
+    { path: '/expired-cards', icon: '🗂️', label: t('sideExpired') },
+  ]},
+  { title: t('sideCheckin'), items: [
+    { path: '/post-arrival-checkin', icon: '🏥', label: t('sideCheckin') },
+    { path: '/checkin-history', icon: '📋', label: t('sideCheckinHistory') },
+    { path: '/emgs-panel-clinic', icon: '📍', label: t('sideClinics') },
+  ]},
+  { title: t('sideAccount'), items: [
+    { path: '/notifications', icon: '🔔', label: t('sideNotifications') },
+    { path: '/apply-visa', icon: '📄', label: t('sideApplyVisa') },
+    { path: '/feedback', icon: '✉️', label: t('sideFeedback') },
+    { path: '/profile', icon: '👤', label: t('sideProfile') },
+  ]},
+])
+const pageTitle = computed(() => {
+  const map = {
+    '/home': t('pageHome'), '/digital-id': t('pageWallet'), '/ikad-qr': t('pageScan'),
+    '/application-history': t('pageAppHistory'), '/profile': t('pageProfile'),
+    '/post-arrival-checkin': t('pageCheckin'), '/checkin-history': t('pageCheckinHistory'),
+    '/emgs-panel-clinic': t('pageClinics'), '/notifications': t('pageNotifications'),
+    '/apply-visa': t('pageApplyVisa'), '/feedback': t('pageFeedback'), '/expired-cards': t('pageExpired'),
+    '/faq': t('faq'), '/terms': t('terms'), '/privacy': t('privacy'),
+  }
+  return map[route.path] || t('appName')
+})
+</script>
+
+<template>
+  <!-- 登录页 -->
+  <div v-if="isLogin" class="login-shell">
+    <router-view v-slot="{ Component }">
+      <transition name="page"><component :is="Component" :key="route.path" /></transition>
+    </router-view>
+    <footer class="footer">
+      <div class="cp">{{ t('footerCopyright') }}</div>
+      <div>{{ t('footerAuthor') }}</div>
+      <div class="disc">{{ t('footerDisclaimer') }}</div>
+    </footer>
+    <pwa-install manifest-url="/manifest.webmanifest" manual-how-to></pwa-install>
+  </div>
+
+  <!-- 竖版 -->
+  <div v-else-if="!isDesktop" class="shell-m" :class="{ 'lang-fade': langTransitioning }">
+    <div class="m-langbar" :class="{ 'is-hidden': langHidden }">
+      <div style="position:relative;">
+        <button class="lang-btn" type="button" @click="showLang = !showLang">
+          <template v-if="lang === 'zh-CN'">
+            <img :src="cnLang.flag" alt="" class="flag-ico">简体中文
+          </template>
+          <template v-else>
+            <span class="flag-cluster">
+              <img v-for="f in TRAD_FLAGS" :key="f.alt" :src="f.src" :alt="f.alt" class="flag-ico">
+            </span>
+            繁體中文
+          </template>
+        </button>
+        <div v-if="showLang" class="lang-pop" @click.stop>
+          <button type="button" :class="{ active: lang === 'zh-CN' }" @click="setLang('zh-CN')">
+            <img :src="cnLang.flag" alt="" class="flag-ico">简体中文
+          </button>
+          <button type="button" :class="{ active: lang !== 'zh-CN' }" @click="setLang('zh-TW')">
+            <span class="flag-cluster">
+              <img v-for="f in TRAD_FLAGS" :key="f.alt" :src="f.src" :alt="f.alt" class="flag-ico">
+            </span>
+            繁體中文
+          </button>
+        </div>
+      </div>
+    </div>
+    <router-view v-slot="{ Component }">
+      <transition name="page"><component :is="Component" :key="route.path" /></transition>
+    </router-view>
+    <footer class="footer">
+      <div class="cp">{{ t('footerCopyright') }}</div>
+      <div>{{ t('footerAuthor') }}</div>
+      <div class="disc">{{ t('footerDisclaimer') }}</div>
+    </footer>
+    <nav class="tabbar-m" aria-label="主导航">
+      <router-link v-for="tb in tabs" :key="tb.path" :to="tb.path">
+        <span class="ico" aria-hidden="true">{{ tb.icon }}</span>{{ tb.label }}
+      </router-link>
+    </nav>
+  </div>
+
+  <!-- 横版 -->
+  <div v-else class="shell-d" :class="{ 'lang-fade': langTransitioning }">
+    <aside class="sidebar">
+      <div class="brand-block">
+        <img :src="logoUrl" alt="EMGS中文" style="border-radius:12px; width:72px; height:72px; object-fit:cover;">
+        <div style="display:flex; align-items:center; gap:8px;">
+          <span style="font-size:13px; color:var(--muted-foreground); font-weight:550;">{{ t('appName') }}</span>
+        </div>
+      </div>
+      <!-- 侧栏用户卡（真实头像+姓名） -->
+      <div v-if="loggedIn" class="side-user" @click="router.push('/profile')" style="cursor:pointer;">
+        <UserAvatar :size="40" />
+        <div style="min-width:0;">
+          <div style="font-size:13.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ authService.profile?.fullname || authService.user }}</div>
+          <div style="font-size:11px; color:var(--muted-foreground); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">{{ authService.profile?.university || '' }}</div>
+        </div>
+      </div>
+      <template v-for="g in sideGroups" :key="g.title">
+        <div class="side-group">{{ g.title }}</div>
+        <router-link v-for="it in g.items" :key="it.path" :to="it.path" class="side-item">
+          <span class="ico" aria-hidden="true">{{ it.icon }}</span>{{ it.label }}
+        </router-link>
+      </template>
+      <div class="side-spacer"></div>
+      <div style="position:relative; padding: 6px 10px 0;">
+        <button class="lang-btn" style="width:100%;" @click="showLang = !showLang">
+          <template v-if="lang === 'zh-CN'">
+            <img :src="cnLang.flag" alt="" class="flag-ico">简体中文
+          </template>
+          <template v-else>
+            <span class="flag-cluster">
+              <img v-for="f in TRAD_FLAGS" :key="f.alt" :src="f.src" :alt="f.alt" class="flag-ico">
+            </span>
+            繁體中文
+          </template>
+        </button>
+        <div v-if="showLang" class="lang-pop" style="top:auto; bottom:48px;" @click.stop>
+          <button :class="{ active: lang === 'zh-CN' }" @click="setLang('zh-CN')">
+            <img :src="cnLang.flag" alt="" class="flag-ico">简体中文
+          </button>
+          <button :class="{ active: lang !== 'zh-CN' }" @click="setLang('zh-TW')">
+            <span class="flag-cluster">
+              <img v-for="f in TRAD_FLAGS" :key="f.alt" :src="f.src" :alt="f.alt" class="flag-ico">
+            </span>
+            繁體中文
+          </button>
+        </div>
+      </div>
+      <div class="side-foot">{{ t('footerCopyright') }}<br>{{ t('footerAuthor') }}</div>
+    </aside>
+    <div class="content-d">
+      <div class="toolbar-d">
+        <h1>{{ pageTitle }}</h1>
+        <div class="spacer"></div>
+      </div>
+      <div class="page-d">
+        <router-view v-slot="{ Component }">
+          <transition name="page"><component :is="Component" :key="route.path" /></transition>
+        </router-view>
+        <div class="footer" style="border:none; text-align:left; padding:34px 0 0;">
+          <div class="disc" style="margin:0 0 8px;">{{ t('footerDisclaimer') }}</div>
+          <div class="cp">{{ t('footerCopyright') }} · {{ t('footerAuthor') }}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</template>
+
+<style>
+/* 语言切换淡入淡出 */
+.lang-fade { transition: opacity .16s ease; opacity: .55; }
+/* 国旗图标 */
+.flag-ico { width: 20px; height: 14px; object-fit: cover; border-radius: 2px; display: inline-block; vertical-align: middle; margin-right: 8px; box-shadow: 0 0 0 .5px rgba(0,0,0,.15); }
+.lang-btn { display: inline-flex; align-items: center; justify-content: center; gap: 0; }
+.lang-pop button { display: flex; align-items: center; }
+/* 侧栏用户卡 */
+.side-user { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid var(--border); }
+/* 登录页语言切换浮层位置 */
+.login-shell { position: relative; }
+.login-shell .lang-pop { top: auto; }
+</style>
