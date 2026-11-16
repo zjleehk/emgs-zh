@@ -58,30 +58,14 @@ body {
   -webkit-font-smoothing: antialiased;
   letter-spacing: -.011em;
 }
-/* 动效（尊重 reduced-motion） */
 @media (prefers-reduced-motion: no-preference) {
-  .page-enter-active { transition: opacity .3s cubic-bezier(.22,1,.36,1), transform .3s cubic-bezier(.22,1,.36,1); }
-  .page-enter-from { opacity: 0; transform: translateY(14px); }
-  .page-leave-active { transition: opacity .15s ease; }
-  .page-leave-to { opacity: 0; }
   .pressable { transition: transform .16s cubic-bezier(.22,1,.36,1), background-color .18s ease, box-shadow .2s ease, border-color .18s ease; }
   .pressable:hover { transform: translateY(-1px); box-shadow: var(--shadow-lg); }
   .pressable:active { transform: scale(.975); box-shadow: var(--shadow); }
-  .fade-up { animation: fadeUp .5s cubic-bezier(.22,1,.36,1) both; }
-  .stagger > * { animation: fadeUp .55s cubic-bezier(.22,1,.36,1) both; }
-  .stagger > *:nth-child(1) { animation-delay: .03s; }
-  .stagger > *:nth-child(2) { animation-delay: .08s; }
-  .stagger > *:nth-child(3) { animation-delay: .13s; }
-  .stagger > *:nth-child(4) { animation-delay: .18s; }
-  .stagger > *:nth-child(5) { animation-delay: .23s; }
-  .stagger > *:nth-child(6) { animation-delay: .28s; }
-  .stagger > *:nth-child(7) { animation-delay: .33s; }
-  .stagger > *:nth-child(8) { animation-delay: .38s; }
   .progress-fill { transition: width .8s cubic-bezier(.22,1,.36,1); }
   .pulse-dot { animation: pulse 2s ease-in-out infinite; }
   @keyframes pulse { 0%,100% { opacity: 1; } 50% { opacity: .45; } }
 }
-@keyframes fadeUp { from { opacity: 0; transform: translateY(16px); } to { opacity: 1; transform: none; } }
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
@@ -91,8 +75,8 @@ body {
 @media (display-mode: standalone) {
   .page-m { padding-top: max(54px, calc(14px + env(safe-area-inset-top))); }
 }
-.m-langbar { display: flex; justify-content: flex-end; padding: calc(8px + env(safe-area-inset-top)) 16px 0; transition: opacity .2s ease, transform .2s ease; }
-.m-langbar.is-hidden { opacity: 0; transform: translateY(-8px); pointer-events: none; }
+.m-langbar { display: flex; justify-content: flex-end; align-items: center; gap: 10px; padding: calc(8px + env(safe-area-inset-top)) 16px 0; }
+.m-langbar .gh-top { margin-top: -4px; }
 @media (display-mode: standalone) {
   .m-langbar { padding-top: max(50px, calc(8px + env(safe-area-inset-top))); }
   .page-m { padding-top: 8px; }
